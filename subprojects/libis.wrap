@@ -1,0 +1,3 @@
+[wrap-git]
+url = git@github.com:NolanRus/libis.git
+revision = head

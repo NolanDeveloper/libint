@@ -2,7 +2,6 @@
 #define LIBINT_INTERNAL_H
 
 #include <libint.h>
-#include "libint_utils.h"
 
 #if 1
 typedef unsigned             LibintWord;
@@ -20,7 +19,6 @@ _Static_assert(sizeof(LibintWord) * 2 <= sizeof(LibintDword),
                "LibintDword must be at least twice as big as LibintWord");
 
 struct Libint_ {
-    Libis *libis;
     LibintSigned *libint_constants[17];
     LibintUnsigned *libint_unsigned_constants[17];
 };
@@ -41,10 +39,6 @@ struct LibintSigned_ {
 #define LIBINT_SIGNED_INVARIANT(x) \
     (LIBINT_UNSIGNED_INVARIANT((x)->magnitude) && \
      ((x)->magnitude->size > 1 || (x)->magnitude->ptr[0] || !(x)->is_negative))
-
-#define EIS errorlibis_to_errorlibint
-
-LibintError errorlibis_to_errorlibint(LibisError err);
 
 #define E libint_handle_internal_error
 

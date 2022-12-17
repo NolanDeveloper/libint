@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <libis.h>
 
 typedef struct Libint_ Libint;
 typedef struct LibintUnsigned_ LibintUnsigned;
@@ -14,11 +13,9 @@ typedef enum {
     LIBINT_ERROR_OK,
     LIBINT_ERROR_OUT_OF_MEMORY,
     LIBINT_ERROR_BAD_ARGUMENT,
-    // Division by zero or LibintUnsigned subtraction with negative value
-    // or another error with arithmetical nature.
+    // Division by zero or unsigned subtraction with negative result
+    // or another error of arithmetical nature.
     LIBINT_ERROR_ARITHMETIC,
-    // Input string does not contain a valid number.
-    LIBINT_ERROR_PARSE,
     // Input/output error.
     LIBINT_ERROR_IO,
 } LibintError;
@@ -31,7 +28,8 @@ LibintError libint_create(Libint *libint, LibintSigned **x, intmax_t value);
 
 LibintError libint_to_intmax(Libint *libint, LibintSigned *x, intmax_t *value);
 
-LibintError libint_from_string(Libint *libint, LibintSigned **x, const char *input, size_t input_size, int base);
+LibintError libint_from_string(Libint *libint, LibintSigned **x, const char *input, size_t input_size, int base,
+                               const char **input_end);
 
 LibintError libint_to_string(Libint *libint, LibintSigned *x, int base, char **out, size_t *out_size);
 
@@ -84,7 +82,7 @@ LibintError libint_unsigned_create(Libint *libint, LibintUnsigned **x, uintmax_t
 LibintError libint_unsigned_to_uintmax(Libint *libint, LibintUnsigned *x, uintmax_t *value);
 
 LibintError libint_unsigned_from_string(
-        Libint *libint, LibintUnsigned **x, const char *input, size_t input_size, int base);
+        Libint *libint, LibintUnsigned **x, const char *input, size_t input_size, int base, const char **input_end);
 
 LibintError libint_unsigned_to_string(Libint *libint, LibintUnsigned *x, int base, char **out, size_t *out_size);
 
@@ -136,9 +134,5 @@ LibintError libint_unsigned_compare(Libint *libint, LibintUnsigned *x, LibintUns
 LibintError libint_unsigned_less(Libint *libint, LibintUnsigned *x, LibintUnsigned *y, bool *out);
 
 LibintError libint_unsigned_less_or_equal(Libint *libint, LibintUnsigned *x, LibintUnsigned *y, bool *out);
-
-LibintError libint_from_input_stream(Libint *libint, LibintSigned **x, LibisInputStream *input, int base);
-
-LibintError libint_unsigned_from_input_stream(Libint *libint, LibintUnsigned **x, LibisInputStream *input, int base);
 
 #endif

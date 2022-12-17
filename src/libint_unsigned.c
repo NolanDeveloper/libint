@@ -7,23 +7,6 @@
 #include <stdio.h>
 #include <ctype.h>
 
-LibintError errorlibis_to_errorlibint(LibisError err) {
-    switch (err) {
-    case LIBIS_ERROR_OK:
-        return LIBINT_ERROR_OK;
-    case LIBIS_ERROR_OUT_OF_MEMORY:
-        return LIBINT_ERROR_OUT_OF_MEMORY;
-    case LIBIS_ERROR_BAD_ARGUMENT:
-        abort();
-    case LIBIS_ERROR_IO:
-        return LIBINT_ERROR_IO;
-    case LIBIS_ERROR_TOO_FAR:
-    case LIBIS_ERROR_HANGING_BITS:
-        abort();
-    }
-    abort();
-}
-
 LibintError libint_unsigned_create(Libint *libint, LibintUnsigned **x, uintmax_t value) {
     LibintError err = LIBINT_ERROR_OK;
     LibintWord *ptr = NULL;
@@ -113,65 +96,44 @@ static bool parse_digit(char c, int base, int *digit) {
 }
 
 LibintError libint_unsigned_from_string(
-        Libint *libint, LibintUnsigned **x, const char *input, size_t input_size, int base) {
-    LibintError err = LIBINT_ERROR_OK;
-    LibisInputStream *input_stream = NULL;
-    LibisSource *source = NULL;
-    if (!libint || !x || !input) {
-        err = LIBINT_ERROR_BAD_ARGUMENT;
-        goto end;
-    }
-    err = EIS(libis_source_create_from_buffer(libint->libis, &source, input, input_size, false));
-    if (err) goto end;
-    err = EIS(libis_create(libint->libis, &input_stream, &source, 1));
-    if (err) goto end;
-    err = E(libint_unsigned_from_input_stream(libint, x, input_stream, base));
-    if (err) goto end;
-end:
-    EIS(libis_source_destroy(libint->libis, &source));
-    EIS(libis_destroy(libint->libis, &input_stream));
-    return err;
-}
-
-LibintError libint_unsigned_from_input_stream(Libint *libint, LibintUnsigned **x, LibisInputStream *input, int base) {
+        Libint *libint, LibintUnsigned **x, const char *input, size_t input_size, int base, const char **input_end) {
     LibintError err = LIBINT_ERROR_OK;
     LibintUnsigned *result = NULL;
     LibintUnsigned *base_long = NULL;
-    if (!libint || !x || !input || base < 2 || 16 < base) {
+    const char *current = input;
+    size_t bytes_left = input_size;
+    if (!libint || !x || !input || base < 2 || 16 < base || !input_end) {
         err = LIBINT_ERROR_BAD_ARGUMENT;
         goto end;
     }
+    *input_end = NULL;
     *x = NULL;
     err = E(libint_unsigned_create(libint, &result, 0));
     if (err) goto end;
     err = E(libint_unsigned_create(libint, &base_long, base));
     if (err) goto end;
-    char c;
-    bool eof;
-    err = E(libint_skip_whitespace(libint, input, &eof, &c));
-    if (err) goto end;
-    bool no_digits_parsed = true;
+    char c = (char) (bytes_left ? *current : '\0');
     while (true) {
-        int digit;
+        int digit = -1;
         if (!parse_digit(c, base, &digit)) {
-            if (no_digits_parsed) {
-                err = LIBINT_ERROR_PARSE;
-                goto end;
-            }
             break;
         }
-        no_digits_parsed = false;
-        if (err) goto end;
         err = E(libint_unsigned_mul_replace(libint, &result, base_long));
         if (err) goto end;
         err = E(libint_unsigned_add_replace(libint, &result, libint->libint_unsigned_constants[digit]));
         if (err) goto end;
-        err = EIS(libis_skip_char(libint->libis, input, &eof, &c));
-        if (err) goto end;
+        if (bytes_left) {
+            ++current;
+            --bytes_left;
+            c = *current;
+        } else {
+            c = '\0';
+        }
     }
     *x = result;
     result = NULL;
 end:
+    if (input_end) *input_end = current;
     E(libint_unsigned_destroy(libint, &base_long));
     E(libint_unsigned_destroy(libint, &result));
     return err;

@@ -15,8 +15,6 @@ LibintError libint_handle_internal_error(LibintError err) {
         abort();
     case LIBINT_ERROR_ARITHMETIC:
         return LIBINT_ERROR_ARITHMETIC;
-    case LIBINT_ERROR_PARSE:
-        return LIBINT_ERROR_PARSE;
     case LIBINT_ERROR_IO:
         return LIBINT_ERROR_IO;
     }
@@ -47,8 +45,6 @@ LibintError libint_start(Libint **libint) {
         err = E(libint_create(result, &result->libint_constants[j], j));
         if (err) goto end;
     }
-    err = EIS(libis_start(&result->libis));
-    if (err) goto end;
     *libint = result;
     i = 0;
     j = 0;
@@ -81,7 +77,6 @@ LibintError libint_finish(Libint **libint) {
         for (size_t i = 0; i < n; ++i) {
             E(libint_destroy(*libint, &(*libint)->libint_constants[i]));
         }
-        EIS(libis_finish(&(*libint)->libis));
         free(*libint);
         *libint = NULL;
     }
@@ -150,49 +145,33 @@ end:
     return err;
 }
 
-LibintError libint_from_string(Libint *libint, LibintSigned **x, const char *input, size_t input_size, int base) {
+LibintError libint_from_string(Libint *libint, LibintSigned **x, const char *input, size_t input_size, int base,
+                               const char **input_end) {
     LibintError err = LIBINT_ERROR_OK;
-    LibisInputStream *input_stream = NULL;
-    LibisSource *source = NULL;
-    if (!libint || !x || !input_size) {
-        err = LIBINT_ERROR_BAD_ARGUMENT;
-        goto end;
-    }
-    err = EIS(libis_source_create_from_buffer(libint->libis, &source, input, input_size, false));
-    if (err) goto end;
-    err = EIS(libis_create(libint->libis, &input_stream, &source, 1));
-    if (err) goto end;
-    err = E(libint_from_input_stream(libint, x, input_stream, base));
-    if (err) goto end;
-end:
-    EIS(libis_source_destroy(libint->libis, &source));
-    EIS(libis_destroy(libint->libis, &input_stream));
-    return err;
-}
-
-LibintError libint_from_input_stream(Libint *libint, LibintSigned **x, LibisInputStream *input, int base) {
-    LibintError err = LIBINT_ERROR_OK;
-    char c;
-    bool eof;
     LibintUnsigned *magnitude = NULL;
-    if (!libint || !x || base < 2 || 16 < base || !input) {
+    const char *current = input;
+    size_t bytes_left = input_size;
+    if (!libint || !x || base < 2 || 16 < base || !input || !input_end) {
         err = LIBINT_ERROR_BAD_ARGUMENT;
         goto end;
     }
-    err = E(libint_skip_whitespace(libint, input, &eof, &c));
-    if (err) goto end;
+    *input_end = NULL;
     bool is_negative = false;
+    char c = (char) (input_size ? *current : '\0');
     if ('-' == c || '+' == c) {
         is_negative = '-' == c;
-        err = EIS(libis_skip_char(libint->libis, input, &eof, &c));
-        if (err) goto end;
+        ++current;
+        --bytes_left;
     }
-    err = E(libint_unsigned_from_input_stream(libint, &magnitude, input, base));
+    const char *unsigned_input_end = NULL;
+    err = E(libint_unsigned_from_string(libint, &magnitude, current, bytes_left, base, &unsigned_input_end));
     if (err) goto end;
+    current = unsigned_input_end;
     err = E(libint_construct(libint, x, is_negative, magnitude));
     if (err) goto end;
     magnitude = NULL;
 end:
+    if (input_end) *input_end = current;
     E(libint_unsigned_destroy(libint, &magnitude));
     return err;
 }

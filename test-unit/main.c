@@ -294,6 +294,14 @@ void test_div_floor(intmax_t a, intmax_t b) {
     libint_destroy(libint, &expected_remainder);
 }
 
+extern char *int_to_string(LibintSigned *value, int base) {
+    char *out;
+    size_t out_size;
+    LibintError err = libint_to_string(libint, value, base, &out, &out_size);
+    assert(LIBINT_ERROR_OK == err);
+    return out;
+}
+
 void test_str(intmax_t a) {
     int base = 2 + rand() % (16 - 2);
 
@@ -309,7 +317,8 @@ void test_str(intmax_t a) {
     assert(LIBINT_ERROR_OK == err);
 
     LibintSigned *parsed;
-    err = libint_from_string(libint, &parsed, str, str_size, base);
+    const char *end_of_input = NULL;
+    err = libint_from_string(libint, &parsed, str, str_size, base, &end_of_input);
     assert(LIBINT_ERROR_OK == err);
 
     int order;
